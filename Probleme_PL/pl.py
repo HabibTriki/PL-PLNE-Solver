@@ -1,80 +1,111 @@
-from gurobipy import Model, GRB, quicksum
+import sys
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFormLayout, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
 
-def get_input(prompt, cast_type=int, is_list=False):
-    while True:
-        try:
-            value = input(prompt)
-            if is_list:
-                return [cast_type(item) for item in value.split()]
-            return cast_type(value)
-        except ValueError:
-            print(f"Invalid input, please enter again using correct type {cast_type.__name__}")
+from gurobipy import Model, GRB
 
-def main():
-    # User input for problem parameters
-    N = get_input("Enter the number of locations (including depot): ")  # Total locations
-    V = get_input("Enter the number of vehicles: ")
-    W = get_input("Enter the maximum capacity for each vehicle: ")
-    T = get_input("Enter the maximum distance each vehicle can travel: ")
-    L = get_input("Enter the maximum number of customers each vehicle can service: ")
-
-    print("Enter the demands at each location (starting with depot, which should be 0):")
-    Q = get_input("", cast_type=int, is_list=True)
-
-    if len(Q) != N:
-        print("The number of demand inputs does not match the number of locations. Exiting.")
-        return
-
-    print("Enter the distance matrix (rows one by one, separated by space):")
-    C = []
-    for i in range(N):
-        row = get_input(f"Row {i+1}: ", cast_type=int, is_list=True)
-        if len(row) != N:
-            print("The number of distances does not match the number of locations. Exiting.")
-            return
-        C.append(row)
-
-    # Create a new model
-    m = Model("CVRP")
+def solve_vrp(V, W, Q, C):
+    N = len(Q) + 1  # Adding 1 for the depot
+    m = Model("VRP")
 
     # Decision variables
     x = m.addVars(N, N, vtype=GRB.BINARY, name="x")
-    u = m.addVars(N, vtype=GRB.CONTINUOUS, name="u")  # for subtour elimination
+    q = m.addVars(N, vtype=GRB.CONTINUOUS, name="q")
 
-    # Objective: Minimize the total distance traveled
-    m.setObjective(quicksum(C[i][j] * x[i, j] for i in range(N) for j in range(N) if i != j), GRB.MINIMIZE)
+    # Objective: Minimize distance
+    m.setObjective(sum(C[i][j] * x[i, j] for i in range(N) for j in range(N)), GRB.MINIMIZE)
 
     # Constraints
-    # Each customer is visited exactly once
-    for j in range(1, N):
-        m.addConstr(quicksum(x[i, j] for i in range(N) if i != j) == 1)
+    m.addConstrs((x.sum('*', j) == 1 for j in range(1, N)), "visit_once")
+    m.addConstr(x.sum(0, '*') == V, "leave_depot")
+    m.addConstrs((q[i] <= W for i in range(N)), "capacity")
+    m.addConstrs((q[i] + Q[j-1] <= W + (1 - x[i, j]) * W for i in range(N) for j in range(1, N)), "load_continuity")
 
-    # Each vehicle leaves the depot
-    m.addConstr(quicksum(x[0, j] for j in range(1, N)) == V)
-
-    # Each vehicle returns to the depot
-    m.addConstr(quicksum(x[i, 0] for i in range(1, N)) == V)
-
-    # Capacity constraints
-    for i in range(1, N):
-        m.addConstr(quicksum(x[i, j] * Q[j] for j in range(N) if i != j) <= W)
-
-    # Subtour elimination and other constraints
-    for i in range(1, N):
-        for j in range(1, N):
-            if i != j:
-                m.addConstr(u[i] - u[j] + L * x[i, j] <= L - 1)
-
-    # Solve the model
     m.optimize()
 
-    # Print solution
     if m.status == GRB.OPTIMAL:
-        solution = m.getAttr('x', x)
+        result = "Optimal Solution Found:\n"
         for i in range(N):
             for j in range(N):
-                if solution[i, j] > 0.5:
-                    print(f"Vehicle travels from {i} to {j}")
+                if x[i, j].x > 0.5:
+                    result += f"Vehicle travels from {i} to {j}\n"
+        return result
+    else:
+        return "No optimal solution found"
 
-if __name__ == "__main__":
-    main()
+class VRPApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('Vehicle Routing Problem Solver')
+        layout = QVBoxLayout()
+
+        # Form layout for inputs
+        formLayout = QFormLayout()
+        self.numVehiclesInput = QLineEdit()
+        self.capacityInput = QLineEdit()
+        self.numCustomersInput = QLineEdit()
+        self.demandsInput = QLineEdit()
+
+        self.numCustomersInput.editingFinished.connect(self.setupMatrix)
+
+        formLayout.addRow(QLabel("Number of Vehicles:"), self.numVehiclesInput)
+        formLayout.addRow(QLabel("Vehicle Capacity:"), self.capacityInput)
+        formLayout.addRow(QLabel("Number of Customers:"), self.numCustomersInput)
+        formLayout.addRow(QLabel("Demands (comma-separated):"), self.demandsInput)
+
+        # Table for distance matrix
+        self.matrixTable = QTableWidget()
+        self.matrixTable.setRowCount(1)  # Default size
+        self.matrixTable.setColumnCount(1)
+        layout.addLayout(formLayout)
+        layout.addWidget(self.matrixTable)
+
+        # Buttons
+        self.solveButton = QPushButton('Solve VRP')
+        self.solveButton.clicked.connect(self.solveProblem)
+        layout.addWidget(self.solveButton)
+
+        self.setLayout(layout)
+        self.setGeometry(200, 200, 800, 600)
+
+    def setupMatrix(self):
+        try:
+            n = int(self.numCustomersInput.text()) + 1  # Including depot
+            self.matrixTable.setRowCount(n)
+            self.matrixTable.setColumnCount(n)
+            self.matrixTable.setHorizontalHeaderLabels([f"Node {i}" for i in range(n)])
+            self.matrixTable.setVerticalHeaderLabels([f"Node {i}" for i in range(n)])
+            for i in range(n):
+                for j in range(n):
+                    if self.matrixTable.item(i, j) is None:
+                        self.matrixTable.setItem(i, j, QTableWidgetItem("0"))
+        except ValueError:
+            QMessageBox.warning(self, "Error", "Invalid number of customers")
+
+    def solveProblem(self):
+        try:
+            V = int(self.numVehiclesInput.text())
+            W = int(self.capacityInput.text())
+            Q = list(map(int, self.demandsInput.text().split(',')))
+            n = int(self.numCustomersInput.text()) + 1  # Including depot
+
+            # Read matrix from table
+            C = []
+            for i in range(n):
+                row = []
+                for j in range(n):
+                    row.append(float(self.matrixTable.item(i, j).text()))
+                C.append(row)
+
+            result = solve_vrp(V, W, Q, C)
+            QMessageBox.information(self, "Result", result)
+        except Exception as e:
+            QMessageBox.warning(self, "Error", str(e))
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    ex = VRPApp()
+    ex.show()
+    sys.exit(app.exec_())

@@ -1,0 +1,12 @@
+N = 5  # Example: 1 depot + 4 customers
+V = 2  # Number of vehicles
+W = 10  # Vehicle capacity
+
+# Example data: distances and demands
+C = [[0, 2, 3, 2, 4],
+     [2, 0, 4, 1, 3],
+     [3, 4, 0, 5, 3],
+     [2, 1, 5, 0, 2],
+     [4, 3, 3, 2, 0]]
+
+Q = [0, 1, 2, 2, 3]  # Demands, with depot as 0
