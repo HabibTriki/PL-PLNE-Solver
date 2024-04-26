@@ -10,3 +10,14 @@ C = [[0, 2, 3, 2, 4],
      [4, 3, 3, 2, 0]]
 
 Q = [0, 1, 2, 2, 3]  # Demands, with depot as 0
+
+
+**Problem :
+
+Let's start by formulating a basic linear programming (LP) problem for a Vehicle Routing Problem (VRP) using Python and Gurobi. For simplicity, we'll assume a scenario where you need to determine the optimal routes for a set of vehicles to minimize total distance traveled, subject to constraints on vehicle capacity and the maximum number of customers per route.
+
+Assumptions
+There is one depot and multiple customers.
+Each vehicle has the same capacity.
+Each customer must be visited exactly once by exactly one vehicle.
+The total distance traveled by each vehicle should be minimized.
