@@ -23,11 +23,11 @@ Follow these steps to get the application running on your local machine:
 
 1. **Clone the Repository**
    ```
-   git clone https://github.com/yourusername/blending-problem-solver.git
+   git clone https://github.com/HabibTriki/PL-PLNE-Solver.git
    ```
 2. **Navigate to the Directory**
    ```
-   cd blending-problem-solver
+   cd PL-PLNE-Solver
    ```
 
 3. **Install Required Packages**
@@ -73,8 +73,55 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE.md) f
 
 ### Notes:
 - **License**: I assumed the MIT License for this template; you might want to choose a different license depending on your project's needs.
-- 
-# PLM problem :
+
+# Vehicle Routing Problem Solver
+
+This repository contains a Python-based application that uses Gurobi and PyQt5 to solve the Vehicle Routing Problem (VRP). The application provides a graphical user interface for inputting the problem parameters and visualizing the solution.
+
+## Features
+
+- **Interactive Input**: Users can specify the number of vehicles, vehicle capacity, number of customers, and customer demands directly through the GUI.
+- **Distance Matrix Configuration**: Users can input and edit the distance matrix directly within the application.
+- **Optimization**: Leverages the power of the Gurobi optimizer to find solutions to the VRP.
+- **Result Display**: Displays the optimization results directly through a message box within the GUI.
+
+## Prerequisites
+
+Ensure you have the following installed on your system:
+- Python 3.x
+- PyQt5
+- Gurobi Optimizer
+
+Additionally, you need a valid Gurobi license to run the optimization. Gurobi offers academic licenses for free if you are associated with a recognized academic institution.
+
+## Running the Application
+
+To run the application, execute:
+```
+python VRPApp.py
+```
+This will launch the GUI, where you can input your data and solve the VRP.
+
+## Usage
+
+1. **Enter the Number of Vehicles** and their capacity.
+2. **Specify the Number of Customers** and their demands.
+3. **Input the Distance Matrix**: Fill out the matrix where each cell represents the distance from Node i to Node j.
+4. **Solve the Problem**: Click the 'Solve VRP' button to compute the optimal routing.
+5. **View Results**: The results will be displayed in a message box.
+
+## Contributing
+
+Contributions to this project are welcome. Feel free to fork the repo, add your changes, and submit a pull request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
+
+## Acknowledgments
+
+- Thanks to Gurobi for providing the powerful optimization engine.
+- Thanks to PyQt for the GUI framework.
 
 ![image](https://github.com/HabibTriki/PL-PLNE-Solver/assets/123327090/08316ed7-a5d7-43f6-b482-f063349aa469)
 ![image](https://github.com/HabibTriki/PL-PLNE-Solver/assets/123327090/ca151520-b2a4-4953-9dea-cda44e9b7966)
