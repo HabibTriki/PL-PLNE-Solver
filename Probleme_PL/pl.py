@@ -1,87 +1,108 @@
 import sys
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton
 from gurobipy import Model, GRB
+from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit, QLabel, QPushButton, QVBoxLayout
 
-def resoudre_probleme(x_A_val, x_B_val):
-    # Créer un nouveau modèle avec Gurobi
-    mod = Model("maximisation_profit")
-
-    # Définir les variables
-    x_A = mod.addVar(vtype=GRB.INTEGER, name="x_A")
-    x_B = mod.addVar(vtype=GRB.INTEGER, name="x_B")
-
-    # Définir la fonction objectif
-    mod.setObjective(1450 * x_A + 1800 * x_B, GRB.MAXIMIZE)
-
-    # Ajouter les contraintes de temps de fabrication
-    mod.addConstr(10 * x_A + 8 * x_B <= 300, "Preparation")
-    mod.addConstr(6 * x_A + 4 * x_B <= 150, "Assemblage")
-    mod.addConstr(9 * x_A + 7 * x_B <= 250, "Finition")
-
-    # Ajouter les contraintes d'engagement minimum et de capacité du marché
-    mod.addConstr(x_A >= x_A_val, "Engagement_A")
-    mod.addConstr(x_B >= x_B_val, "Engagement_B")
-    mod.addConstr(x_A <= 10, "Limite_A")
-    mod.addConstr(x_B <= 10, "Limite_B")
-
-    # Optimiser le modèle
-    mod.optimize()
-
-    # Vérifier si une solution optimale a été trouvée
-    if mod.status == GRB.OPTIMAL:
-        # Récupérer les valeurs des variables et le profit total
-        solution_x_A = x_A.x
-        solution_x_B = x_B.x
-        profit_total = mod.objVal
-    else:
-        # Si aucune solution n'est trouvée, retourner des valeurs nulles ou appropriées
-        solution_x_A = None
-        solution_x_B = None
-        profit_total = None
-
-    return solution_x_A, solution_x_B, profit_total
-
-
-class App(QWidget):
-
+class BlendingProblemGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
 
     def initUI(self):
-        # Disposition verticale
-        layout = QVBoxLayout()
+        self.setGeometry(100, 100, 700, 500)  # Adjust size as needed
+        self.setWindowTitle('Blending Problem Solver')
 
-        # Ajouter des champs de texte pour l'input de l'utilisateur
-        self.input_x_A = QLineEdit(self)
-        self.input_x_B = QLineEdit(self)
-        self.solve_button = QPushButton('Résoudre', self)
-        self.solve_button.clicked.connect(self.on_click)
+        # Main layout
+        main_layout = QVBoxLayout()
+        self.setLayout(main_layout)
 
-        # Ajouter des champs de texte à la disposition
-        layout.addWidget(QLabel('Nombre de bibliothèques modèle A'))
-        layout.addWidget(self.input_x_A)
-        layout.addWidget(QLabel('Nombre de bibliothèques modèle B'))
-        layout.addWidget(self.input_x_B)
-        layout.addWidget(self.solve_button)
+        # Title label (Heading 1)
+        title_label = QLabel('Blending Problem')
+        title_label.setStyleSheet('font-size: 24px; font-weight: bold;')
+        main_layout.addWidget(title_label)
 
-        # Définir la disposition sur la fenêtre
-        self.setLayout(layout)
-        self.setWindowTitle('Maximisation de Profit')
-        self.show()
+        # Ingredient fields
+        self.inputs = {}
+        for ingredient in ['Corn', 'Wheat', 'Soy']:
+            label = QLabel(f'{ingredient} (cost, protein, fat):')
+            line_edit = QLineEdit()
+            main_layout.addWidget(label)
+            main_layout.addWidget(line_edit)
+            self.inputs[ingredient] = line_edit
 
-    def on_click(self):
-        # Lorsque le bouton est cliqué, lire les valeurs
-        x_A_val = int(self.input_x_A.text())
-        x_B_val = int(self.input_x_B.text())
+        # Protein and fat requirements
+        self.min_protein_input = QLineEdit()
+        self.max_fat_input = QLineEdit()
+        main_layout.addWidget(QLabel('Minimum Protein:'))
+        main_layout.addWidget(self.min_protein_input)
+        main_layout.addWidget(QLabel('Maximum Fat:'))
+        main_layout.addWidget(self.max_fat_input)
 
-        # Appeler la fonction de résolution de problème
-        x_A_sol, x_B_sol, profit = resoudre_probleme(x_A_val, x_B_val)
+        # Submit button
+        submit_btn = QPushButton('Solve')
+        submit_btn.clicked.connect(self.solve_problem)
+        main_layout.addWidget(submit_btn)
 
-        # Afficher les résultats (cet exemple affiche simplement les résultats dans le terminal)
-        print(f"Solution: x_A={x_A_sol}, x_B={x_B_sol}, Profit={profit}")
+        # Result display label
+        self.result_label = QLabel('')
+        main_layout.addWidget(self.result_label)
+
+        # Back button
+        back_btn = QPushButton('Back')
+        back_btn.clicked.connect(self.close)  # Close the current window
+        main_layout.addWidget(back_btn)
+
+    def solve_problem(self):
+        # Read inputs
+        cost = {}
+        protein = {}
+        fat = {}
+
+        for ingredient, input_field in self.inputs.items():
+            values = input_field.text().split(',')
+            if len(values) == 3:
+                try:
+                    cost[ingredient] = float(values[0])
+                    protein[ingredient] = float(values[1])
+                    fat[ingredient] = float(values[2])
+                except ValueError:
+                    self.result_label.setText("Invalid input for one or more ingredients. Please enter numeric values.")
+                    return
+
+        try:
+            min_protein = float(self.min_protein_input.text())
+            max_fat = float(self.max_fat_input.text())
+        except ValueError:
+            self.result_label.setText("Invalid input for protein or fat requirements.")
+            return
+
+        # Initialize the model
+        model = Model("Blending Problem")
+        ingredients = ['Corn', 'Wheat', 'Soy']
+
+        # Define decision variables
+        amount = model.addVars(ingredients, name="amount")
+
+        # Objective: Minimize total cost
+        model.setObjective(sum(cost[i] * amount[i] for i in ingredients), GRB.MINIMIZE)
+
+        # Constraints
+        model.addConstr(sum(protein[i] * amount[i] for i in ingredients) >= min_protein, "MinProtein")
+        model.addConstr(sum(fat[i] * amount[i] for i in ingredients) <= max_fat, "MaxFat")
+
+        # Solve the model
+        model.optimize()
+
+        # Output results
+        if model.status == GRB.OPTIMAL:
+            result_text = "Optimal solution found:\n"
+            for ingredient in ingredients:
+                result_text += f"{ingredient}: {amount[ingredient].x:.2f} units\n"
+            self.result_label.setText(result_text)
+        else:
+            self.result_label.setText("No optimal solution found.")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = App()
+    ex = BlendingProblemGUI()
+    ex.show()
     sys.exit(app.exec_())

@@ -1,5 +1,6 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QPushButton, QFormLayout, QMessageBox, QTableWidget, QTableWidgetItem, QHeaderView
+from PyQt5.QtGui import QFont
 
 from gurobipy import Model, GRB
 
@@ -41,6 +42,12 @@ class VRPApp(QWidget):
         self.setWindowTitle('Vehicle Routing Problem Solver')
         layout = QVBoxLayout()
 
+
+        # H1 styled heading
+        heading = QLabel('Vehicle Routing Problem')
+        heading.setFont(QFont('Arial', 24, QFont.Bold))  # Setting font to Arial, 24pt, bold
+        layout.addWidget(heading)
+
         # Form layout for inputs
         formLayout = QFormLayout()
         self.numVehiclesInput = QLineEdit()
@@ -66,6 +73,11 @@ class VRPApp(QWidget):
         self.solveButton = QPushButton('Solve VRP')
         self.solveButton.clicked.connect(self.solveProblem)
         layout.addWidget(self.solveButton)
+
+        #Back button
+        back_btn = QPushButton('Back')
+        back_btn.clicked.connect(self.close)  # Close the current window
+        layout.addWidget(back_btn)
 
         self.setLayout(layout)
         self.setGeometry(200, 200, 800, 600)
