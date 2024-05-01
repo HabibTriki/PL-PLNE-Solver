@@ -7,20 +7,13 @@ from gurobipy import Model, GRB
 def solve_vrp(V, W, Q, C):
     N = len(Q) + 1  # Adding 1 for the depot
     m = Model("VRP")
-
-    # Decision variables
     x = m.addVars(N, N, vtype=GRB.BINARY, name="x")
     q = m.addVars(N, vtype=GRB.CONTINUOUS, name="q")
-
-    # Objective: Minimize distance
     m.setObjective(sum(C[i][j] * x[i, j] for i in range(N) for j in range(N)), GRB.MINIMIZE)
-
-    # Constraints
     m.addConstrs((x.sum('*', j) == 1 for j in range(1, N)), "visit_once")
     m.addConstr(x.sum(0, '*') == V, "leave_depot")
     m.addConstrs((q[i] <= W for i in range(N)), "capacity")
     m.addConstrs((q[i] + Q[j-1] <= W + (1 - x[i, j]) * W for i in range(N) for j in range(1, N)), "load_continuity")
-
     m.optimize()
 
     if m.status == GRB.OPTIMAL:
