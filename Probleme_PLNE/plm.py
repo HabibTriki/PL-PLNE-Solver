@@ -11,8 +11,9 @@ def solve_vrp(V, W, Q, C):
     q = m.addVars(N, vtype=GRB.CONTINUOUS, name="q")
     m.setObjective(sum(C[i][j] * x[i, j] for i in range(N) for j in range(N)), GRB.MINIMIZE)
     m.addConstrs((x.sum('*', j) == 1 for j in range(1, N)), "visit_once")
+    #m.addConstr(x.sum('*' , 0) == V, "arrive_depot")
     m.addConstr(x.sum(0, '*') == V, "leave_depot")
-    m.addConstrs((q[i] <= W for i in range(N)), "capacity")
+    m.addConstrs((x[i,j] * q[i] <= W for i in range(N) for j in range(N)), "capacity")
     m.addConstrs((q[i] + Q[j-1] <= W + (1 - x[i, j]) * W for i in range(N) for j in range(1, N)), "load_continuity")
     m.optimize()
 
