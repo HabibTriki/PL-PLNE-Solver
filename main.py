@@ -26,7 +26,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(heading)
 
         # Header label with bold text
-        header_label = QLabel("""Prepared by: Mohamed Habib Triki, Idriss Saddi, Aymen Koched, Ala Eddine Achach""")
+        header_label = QLabel("""Prepared by: Mohamed Habib Triki, Idris Saddi, Aymen Koched, Ala Eddine Achach""")
         header_label.setAlignment(Qt.AlignCenter)
         header_label.setStyleSheet("font-weight: bold; font-size: 14px;")
         main_layout.addWidget(header_label)
