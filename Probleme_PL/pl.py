@@ -1,133 +1,134 @@
 import sys
 from gurobipy import Model, GRB
-from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit, QLabel, QPushButton, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QLineEdit, QLabel, QPushButton, QVBoxLayout, QHBoxLayout, QScrollArea, QGroupBox
 
 class BlendingProblemGUI(QWidget):
     def __init__(self):
         super().__init__()
         self.ingredients = []
-        self.constraints = {}
+        self.constraints = []
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(100, 100, 700, 500)  # Adjust size as needed
+        self.setGeometry(100, 100, 800, 600)
         self.setWindowTitle('Blending Problem Solver')
 
-        # Main layout
         main_layout = QVBoxLayout()
         self.setLayout(main_layout)
 
-        # Title label (Heading 1)
         title_label = QLabel('Blending Problem')
         title_label.setStyleSheet('font-size: 24px; font-weight: bold;')
         main_layout.addWidget(title_label)
 
-        # Ingredient fields
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        main_layout.addWidget(scroll_area)
+
+        scroll_widget = QWidget()
+        scroll_area.setWidget(scroll_widget)
+        scroll_layout = QVBoxLayout(scroll_widget)
+
+        ingredient_group_box = QGroupBox("Ingredients")
+        scroll_layout.addWidget(ingredient_group_box)
         self.input_layout = QVBoxLayout()
-        main_layout.addLayout(self.input_layout)
+        ingredient_group_box.setLayout(self.input_layout)
         self.add_ingredient_field()
 
-        # Constraint fields
-        self.constraint_layout = QVBoxLayout()
-        main_layout.addLayout(self.constraint_layout)
-        self.add_constraint_field()
-
-        # Add ingredient button
         add_ingredient_btn = QPushButton('Add Ingredient')
         add_ingredient_btn.clicked.connect(self.add_ingredient_field)
-        main_layout.addWidget(add_ingredient_btn)
+        scroll_layout.addWidget(add_ingredient_btn)
 
-        # Add constraint button
+        constraint_group_box = QGroupBox("Constraints")
+        scroll_layout.addWidget(constraint_group_box)
+        self.constraint_layout = QVBoxLayout()
+        constraint_group_box.setLayout(self.constraint_layout)
+        self.add_constraint_field()
+
         add_constraint_btn = QPushButton('Add Constraint')
         add_constraint_btn.clicked.connect(self.add_constraint_field)
-        main_layout.addWidget(add_constraint_btn)
+        scroll_layout.addWidget(add_constraint_btn)
 
-        # Submit button
         submit_btn = QPushButton('Solve')
         submit_btn.clicked.connect(self.solve_problem)
         main_layout.addWidget(submit_btn)
 
-        # Result display label
         self.result_label = QLabel('')
+        self.result_label.setWordWrap(True)
         main_layout.addWidget(self.result_label)
 
-        # Back button
         back_btn = QPushButton('Back')
         back_btn.clicked.connect(self.close)
         main_layout.addWidget(back_btn)
 
     def add_ingredient_field(self):
-        ingredient_layout = QVBoxLayout()
-        self.input_layout.addLayout(ingredient_layout)
+        ingredient_layout = QHBoxLayout()
 
-        ingredient_label = QLabel('Ingredient (name, cost):')
+        ingredient_label = QLabel('Ingredient (name, cost, constraint1, value1, constraint2, value2, ...):')
         ingredient_layout.addWidget(ingredient_label)
 
+        self.input_layout.addLayout(ingredient_layout)
+
         ingredient_line_edit = QLineEdit()
-        ingredient_layout.addWidget(ingredient_line_edit)
+        self.input_layout.addWidget(ingredient_line_edit)
 
         self.ingredients.append(ingredient_line_edit)
 
     def add_constraint_field(self):
-        constraint_layout = QVBoxLayout()
-        self.constraint_layout.addLayout(constraint_layout)
+        constraint_layout = QHBoxLayout()
 
-        constraint_label = QLabel('Constraint (name, value, type[min | max]):')
+        constraint_label = QLabel('Constraint (constraint, value, type[min | max]):')
         constraint_layout.addWidget(constraint_label)
 
-        constraint_line_edit = QLineEdit()
-        constraint_layout.addWidget(constraint_line_edit)
+        self.constraint_layout.addLayout(constraint_layout)
 
-        self.constraints[constraint_line_edit] = constraint_layout
+        constraint_line_edit = QLineEdit()
+        self.constraint_layout.addWidget(constraint_line_edit)
+
+        self.constraints.append(constraint_line_edit)
 
     def solve_problem(self):
-        # Read inputs
         cost = {}
+        constraints = {}
         for ingredient_input in self.ingredients:
             values = ingredient_input.text().split(',')
-            if len(values) == 2:
+            if len(values) >= 3 and len(values) % 2 == 1:
                 try:
-                    name = values[0]
+                    name = values[0].strip()
                     cost[name] = float(values[1])
+                    constraints[name] = {values[i].strip(): float(values[i+1]) for i in range(2, len(values), 2)}
                 except ValueError:
                     self.result_label.setText("Invalid input for one or more ingredients. Please enter numeric values.")
                     return
 
         constraints = []
-        for constraint_input, constraint_layout in self.constraints.items():
+        for constraint_input in self.constraints:
             values = constraint_input.text().split(',')
             if len(values) == 3:
                 try:
-                    name = values[0]
+                    constraint = values[0].strip()
                     value = float(values[1])
                     constraint_type = values[2].strip().lower()
                     if constraint_type not in ['min', 'max']:
                         raise ValueError
-                    constraints.append((name, value, constraint_type))
+                    constraints.append((constraint, value, constraint_type))
                 except ValueError:
                     self.result_label.setText("Invalid input for one or more constraints. Please enter numeric values.")
                     return
 
-        # Initialize the model
         model = Model("Blending Problem")
 
-        # Define decision variables
         amount = model.addVars(cost.keys(), name="amount")
 
-        # Objective: Minimize total cost
         model.setObjective(sum(cost[i] * amount[i] for i in cost.keys()), GRB.MINIMIZE)
 
-        # Constraints
-        for name, value, constraint_type in constraints:
+        for constraint, value, constraint_type in constraints:
             if constraint_type == 'min':
-                model.addConstr(sum(amount[i] for i in cost.keys()) >= value, name)
+                model.addConstr(sum(constraints[i].get(constraint, 0) * amount[i] for i in cost.keys()) >= value, constraint + "_min")
             elif constraint_type == 'max':
-                model.addConstr(sum(amount[i] for i in cost.keys()) <= value, name)
+                model.addConstr(sum(constraints[i].get(constraint, 0) * amount[i] for i in cost.keys()) <= value, constraint + "_max")
 
-        # Solve the model
         model.optimize()
 
-        # Output results
         if model.status == GRB.OPTIMAL:
             result_text = "Optimal solution found:\n"
             for ingredient in cost.keys():
